@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+# import helper functions from other scripts
 from code_context import get_code
 from finding_id import make_id
 from parse_findings import parse_data
