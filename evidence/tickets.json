@@ -1,0 +1,169 @@
+[
+  {
+    "rule_id": "flask-hardcoded-secret-key",
+    "path": "target_app/app.py",
+    "start_line": 8,
+    "end_line": 11,
+    "severity": "ERROR",
+    "message": "Hardcoded Flask SECRET_KEY detected. Load this value from an environment variable (e.g., os.environ[\"FLASK_SECRET_KEY\"]) or a secrets manager instead.",
+    "cwe": [
+      "CWE-798: Use of Hard-coded Credentials"
+    ],
+    "owasp": [
+      "A02:2021 - Cryptographic Failures"
+    ],
+    "id": "92d399f1e2",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+    "path": "target_app/app.py",
+    "start_line": 23,
+    "end_line": 23,
+    "severity": "ERROR",
+    "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using an object-relational mapper (ORM) such as SQLAlchemy which will protect your queries.",
+    "cwe": [
+      "CWE-704: Incorrect Type Conversion or Cast"
+    ],
+    "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+    ],
+    "id": "14c40c4afe",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.flask.security.injection.subprocess-injection.subprocess-injection",
+    "path": "target_app/app.py",
+    "start_line": 32,
+    "end_line": 32,
+    "severity": "ERROR",
+    "message": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+    "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+    ],
+    "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+    ],
+    "id": "1818a825b3",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+    "path": "target_app/app.py",
+    "start_line": 32,
+    "end_line": 32,
+    "severity": "ERROR",
+    "message": "Detected subprocess function 'run' with user controlled data. A malicious actor could leverage this to perform command injection. You may consider using 'shlex.escape()'.",
+    "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+    ],
+    "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+    ],
+    "id": "41a985e07a",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+    "path": "target_app/app.py",
+    "start_line": 32,
+    "end_line": 32,
+    "severity": "ERROR",
+    "message": "Found 'subprocess' function 'run' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+    "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+    ],
+    "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+    ],
+    "id": "38481f3fd5",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.lang.security.deserialization.avoid-pyyaml-load.avoid-pyyaml-load",
+    "path": "target_app/app.py",
+    "start_line": 39,
+    "end_line": 39,
+    "severity": "ERROR",
+    "message": "Detected a possible YAML deserialization vulnerability. `yaml.unsafe_load`, `yaml.Loader`, `yaml.CLoader`, and `yaml.UnsafeLoader` are all known to be unsafe methods of deserializing YAML. An attacker with control over the YAML input could create special YAML input that allows the attacker to run arbitrary Python code. This would allow the attacker to steal files, download and install malware, or otherwise take over the machine. Use `yaml.safe_load` or `yaml.SafeLoader` instead.",
+    "cwe": [
+      "CWE-502: Deserialization of Untrusted Data"
+    ],
+    "owasp": [
+      "A08:2017 - Insecure Deserialization",
+      "A08:2021 - Software and Data Integrity Failures",
+      "A08:2025 - Software or Data Integrity Failures"
+    ],
+    "id": "064a67f727",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5",
+    "path": "target_app/app.py",
+    "start_line": 47,
+    "end_line": 47,
+    "severity": "WARNING",
+    "message": "Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is therefore not suitable as a cryptographic signature. Use SHA256 or SHA3 instead.",
+    "cwe": [
+      "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+    ],
+    "owasp": [
+      "A03:2017 - Sensitive Data Exposure",
+      "A02:2021 - Cryptographic Failures",
+      "A04:2025 - Cryptographic Failures"
+    ],
+    "id": "b14d6321d7",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.lang.security.audit.md5-used-as-password.md5-used-as-password",
+    "path": "target_app/app.py",
+    "start_line": 47,
+    "end_line": 47,
+    "severity": "WARNING",
+    "message": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.",
+    "cwe": [
+      "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+    ],
+    "owasp": [
+      "A03:2017 - Sensitive Data Exposure",
+      "A02:2021 - Cryptographic Failures",
+      "A04:2025 - Cryptographic Failures"
+    ],
+    "id": "1c9e3561d0",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  },
+  {
+    "rule_id": "python.flask.security.audit.debug-enabled.debug-enabled",
+    "path": "target_app/app.py",
+    "start_line": 52,
+    "end_line": 52,
+    "severity": "WARNING",
+    "message": "Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.",
+    "cwe": [
+      "CWE-489: Active Debug Code"
+    ],
+    "owasp": [
+      "A06:2017 - Security Misconfiguration"
+    ],
+    "id": "731f897acd",
+    "status": "OPEN",
+    "detected_at": "2026-11-27T05:23:05.080048+00:00"
+  }
+]
