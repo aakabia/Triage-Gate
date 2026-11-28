@@ -18,7 +18,7 @@ def get_code(finding):
     start = finding["start_line"]
     end = finding["end_line"]
 
-    # lists are index by zero so we list slioce start -1 to the end not including the end index, covering entire segment where code is.
+    # lists are index by zero so we list slice start -1 to the end not including the end index, covering entire segment where code is.
     return "\n".join(lines[start - 1:end])
 
 
